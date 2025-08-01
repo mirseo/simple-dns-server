@@ -17,6 +17,10 @@ def main():
         data, address = sock.recvfrom(512)
         print('data', data)
         
+        headers = data.split(b'\n')
+        
+        print(headers)
+        
         print(f"Received {len(data)} bytes from {address}")
 
 if __name__ == "__main__":
