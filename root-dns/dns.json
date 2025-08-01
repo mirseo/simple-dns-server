@@ -1,0 +1,83 @@
+{
+    "Last-Updated": "2023-10-01T12:00:00Z",
+    "Root-servers": [
+        {
+            "Name": "Verisign, Inc.",
+            "URL": "a.root-servers.net",
+            "Ipv4": "198.41.0.4",
+            "Ipv6": "2001:503:ba3e::2:30"
+        },
+        {
+            "Name": "University of Southern California, Information Sciences Institute",
+            "URL": "b.root-servers.net",
+            "Ipv4": "170.247.170.2",
+            "Ipv6": "2801:1b8:10::b"
+        },
+        {
+            "Name": "Cogent Communications",
+            "URL": "c.root-servers.net",
+            "Ipv4": "192.33.4.12",
+            "Ipv6": "2001:500:2::c"
+        },
+        {
+            "Name": "University of Maryland",
+            "URL": "d.root-servers.net",
+            "Ipv4": "199.7.91.13",
+            "Ipv6": "2001:500:2d::d"
+        },
+        {
+            "Name": "NASA (Ames Research Center)",
+            "URL": "e.root-servers.net",
+            "Ipv4": "192.203.230.10",
+            "Ipv6": "2001:500:a8::e"
+        },
+        {
+            "Name": "Internet Systems Consortium, Inc.",
+            "URL": "f.root-servers.net",
+            "Ipv4": "192.5.5.241",
+            "Ipv6": "2001:500:2f::f"
+        },
+        {
+            "Name": "US Department of Defense (NIC)",
+            "URL": "g.root-servers.net",
+            "Ipv4": "192.112.36.4",
+            "Ipv6": "2001:500:12::d0d"
+        },
+        {
+            "Name": "US Army (Research Lab)",
+            "URL": "h.root-servers.net",
+            "Ipv4": "198.97.190.53",
+            "Ipv6": "2001:500:1::53"
+        },
+        {
+            "Name": "Netnod",
+            "URL": "i.root-servers.net",
+            "Ipv4": "192.36.148.17",
+            "Ipv6": "2001:7fe::53"
+        },
+        {
+            "Name": "Verisign, Inc.",
+            "URL": "j.root-servers.net",
+            "Ipv4": "192.58.128.30",
+            "Ipv6": "2001:503:c27::2:30"
+        },
+        {
+            "Name": "RIPE NCC",
+            "URL": "k.root-servers.net",
+            "Ipv4": "193.0.14.129",
+            "Ipv6": "2001:7fd::1"
+        },
+        {
+            "Name": "ICANN",
+            "URL": "l.root-servers.net",
+            "Ipv4": "199.7.83.42",
+            "Ipv6": "2001:500:9f::42"
+        },
+        {
+            "Name": "WIDE Project",
+            "URL": "m.root-servers.net",
+            "Ipv4": "202.12.27.33",
+            "Ipv6": "2001:dc3::35"
+        }
+    ]
+}
