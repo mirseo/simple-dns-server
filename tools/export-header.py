@@ -26,10 +26,25 @@ def main():
             print('decoded DNS header:', {
                 'ID': header[0],
                 'Flags': header[1], 
-                'Questions': header[2],
+                'QDCOUNT': header[2],
                 'Answers': header[3],
                 'Authority': header[4],
                 'Additional': header[5]
+            })
+            # qd Count 기반 가변 도메인 쿼리 처리
+            if header[2] > 0:
+                for i in range(header[2]):
+                    qname_length = data[12:].find(b'\x00') + 1
+                    qname = data[12:12 + qname_length]
+                    print('QNAME:', qname.decode('utf-8'))
+                    data = data[12 + qname_length:]
+                else:
+                    print('No QNAME found in the data')
+                
+            Question_section = struct.unpack('!HH', data[12:16])
+            print ('Question section:', {
+                'QTYPE': Question_section[0],
+                'QCLASS': Question_section[1]
             })
         else:
             print('Data too short for DNS header')
