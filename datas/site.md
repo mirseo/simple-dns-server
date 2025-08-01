@@ -1,0 +1,1 @@
+https://gemini.google.com/app/c8827cebf0b3508a?hl=ko
