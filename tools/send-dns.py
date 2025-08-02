@@ -193,14 +193,6 @@ def main():
         
         # 여기서 RR 레코드를 해석하는 방법을 모르겠다. 어려워요... 루트 DNS님...
         
-        # 코드 위치 변경
-        Question_section = struct.unpack('!HH', data[offset:offset+4])
-        print ('Question section:', {
-            'QTYPE': Question_section[0],
-            'QCLASS': Question_section[1]
-        })
-        offset += 4
-        
         # RDATA 해석
         print('rr section offset', offset)
         name, cd_bytes = decode_dns_name(data, offset)
@@ -260,6 +252,14 @@ def main():
         offset += records['RDLENGTH']
         
         print('records temp', records)
+        
+        # 오류 수정 3차 시도(위치 재변경)
+        Question_section = struct.unpack('!HH', data[offset:offset+4])
+        print ('Question section:', {
+            'QTYPE': Question_section[0],
+            'QCLASS': Question_section[1]
+        })
+        offset += 4
         
         
 
