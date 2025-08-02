@@ -201,7 +201,6 @@ def main():
         
         print('mved offset', offset)
         
-        # 아하하.... 패킷 순서가 잘못되었었네요... 어쨋든 해결했으니 Ok!
         Question_section = struct.unpack('!HH', data[offset:offset+4])
         print ('Question section:', {
             'QTYPE': Question_section[0],
@@ -210,25 +209,77 @@ def main():
         offset += 4
         print('Question section offset', offset)
         
-        # 새로운 오류 등장! ttl 파싱 오류 아핫 
-        # 일단 여기가 수정해야 하는 지점으로 보이는 거 같은뎀.. 지금은 ROOT 서버 요청이라서 Answer 가 0인데 이걸 파싱을 하는 게 문제인가..?
-        
-        # 실제 레코드를 디코딩하면 Authority가 실행됨
-        
+        # 반복형 DNS 파싱 함수
         def parse_rr_record(data_bytes, start_offset):
-            # 기존의 코드를 함수화ㄴ해보기
-            # 모르겠다아ㅏ아...
+            record = {}
+            name, name_bytes_consumed = decode_dns_name(data_bytes, start_offset)
+            current = start_offset + name_bytes_consumed
+            
+            record_type, record_code, record_ttl, record_rdlength = struct.unpack('!HHIH', data[current:current + 10])
+            print(
+                "debug",
+                'record_type', record_type,
+                'record_code', record_code,
+                'record_ttl', record_ttl,
+                'record_rdlength', record_rdlength,
+                'current_offset', current
+            )
+            
+            # 레코드 파싱 구현
+            # a레코드
+            if record_type == 1:
+                record['TYPE'] = 'A'
+                if record_rdlength == 4:
+                    record['RDATA'] = socket.inet_ntoa(data_bytes)
+                else:
+                    record['RDATA'] = f'Malformed A Record RDATA:{record_code.hex()}'
+                
+            # ns record
+            elif record_type == 2:
+                record['TYPE'] = 'NS'
+                ns_name, _ = decode_dns_name(data_bytes, current)
+                record['RDATA'] = ns_name      
+                print('NS_NAME', ns_name, _)
+            
+            # AAAA
+            elif record_type == 28:
+                record['TYPE'] = 'AAAA'
+                if record_rdlength == 16:
+                    record['RDATA'] = socket.inet_ntop(socket.AF_INET6, data_bytes)    
+                else:
+                    record['RDATA'] = f'Malformed A Record RDATA:{record_code.hex()}'
+            
+            # PTR
+            # PTR 은 IP > DNS 이니까, DNS NAME = A 레코드와 동일 (단 한번 더 처리함)
+            elif record_type == 12:
+                record['TYPE'] = 'PTR'
+                ns_name_ptr, _ = decode_dns_name(data_bytes, current)
+                record['RDATA'] = ns_name_ptr 
+                
+            # 모르는 레코드
+            else:
+                # 모르는 거니까 일단 h16 데이터 넣기
+                record['RDATA'] = data.hex()
+                
+            current += record_rdlength
+            
+            
+            print('rr offset', current)
+            print('parsed_record', record)
             pass
         
         # type, class, ttl, rdlength 2,2,4,2 (bytes)
+        
+        print('operated Offset', offset)
+        
+        offering = offset
+        print('offering', offering)
+        dns = parse_rr_record(data, offset)
         
         records['TYPE'], records['CLASS'], records['TTL'], records['RDLENGTH'] = \
             struct.unpack('!HHIH', data[offset:offset + 10])
         offset += 10
         
-        # print('records temp', records)
-        
-        # RDATA 구성 ! 거의 다 왔다! ☆ <- 네? 이후의 저는 아직도 까마득한데요??
         
         # 다음 오프셋으로 이동해서 데이터 불러오기
         raw_rdata = data[offset:offset + records['RDLENGTH']]
