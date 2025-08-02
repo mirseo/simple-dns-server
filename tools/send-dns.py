@@ -282,13 +282,19 @@ def main():
         print('offering', offering)
         
         # 반복 파서 구현 
+        stop_chain = False
         dns_list = []
         for i in range(header[4]):
             id += 1
             offset, record = parse_rr_record(data, offset, id)
             dns_list.append(record)
+            # 스탑체인 리피터 구현 ( A레코드 찾으면 True로 전환 )
+            stop_chain = True if record['TYPE'] == 'A' else False
         print('total_record', dns_list)
         
+        
+        
+        # 2차 체인 쿼리 수행
         
 
     else:
