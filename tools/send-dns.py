@@ -10,7 +10,8 @@ def main():
         
     dns_list.close()
     # 임의로 A DNS 서버 지정 - To-do : 루트  DNS 서버 선정 알고리즘 구현 (PUBLIC IP 기반)
-    root_dns_server_url = root_dns['Root-servers'][0]['URL']
+    # Update > URL > IP변경
+    root_dns_server_url = root_dns['Root-servers'][0]['Ipv4']
     # print('root dns : ', root_dns)
     print('root dns server : ', root_dns_server_url)
     
@@ -39,7 +40,7 @@ def main():
     }
     Question_section = {
         'QNAME':TARGET_DOMAIN,
-        'QTYPE': 0,
+        'QTYPE': 1,
         # A  레코드 조회
         'QCLASS': 1
     }
@@ -133,6 +134,13 @@ def main():
             bytes_consumed_for_this_name = 0 # 이 이름 파싱에 사용된 총 바이트 수 (offset 업데이트용)
 
             while True:
+                # 버그 수정(시도) : UnicodeDecodeError: 'ascii' codec can't decode byte 0xc0 in position 12: ordinal not in range(128)
+                # 데이터 검사 추가
+                if current_reading_offset >= len(data_bytes):
+                    print(f'데이터 읽기 실패 : {current_reading_offset}')
+                    # 데이터 끝 도착 리딩 중단
+                    break
+                
                 length_or_pointer_byte = data_bytes[current_reading_offset]
                 
                 if (length_or_pointer_byte & 0xC0) == 0xC0: # 포인터
@@ -152,6 +160,12 @@ def main():
                     
                 else: # 일반 레이블 길이
                     label_length = length_or_pointer_byte
+                    
+                    # 버그 수정 시도 (2)
+                    if current_reading_offset + 1 + label_length > len(data_bytes):
+                        print(f'데이터 바운더리 초과하는 라벨 {current_reading_offset}')
+                        break
+                    
                     label_bytes = data_bytes[current_reading_offset + 1 : current_reading_offset + 1 + label_length]
                     name_parts.append(label_bytes.decode('ascii'))
                     
@@ -173,6 +187,14 @@ def main():
         # RDATA : RDL : 실제 레코드 데이터
         
         # 여기서 RR 레코드를 해석하는 방법을 모르겠다. 어려워요... 루트 DNS님...
+        
+        # 코드 위치 변경
+        Question_section = struct.unpack('!HH', data[offset:offset+4])
+        print ('Question section:', {
+            'QTYPE': Question_section[0],
+            'QCLASS': Question_section[1]
+        })
+        offset += 4
         
         # RDATA 해석
         print('rr section offset', offset)
@@ -200,7 +222,10 @@ def main():
         
         # A record <- 일반 레코드로 해석하기 위해 단줄 if 풀기
         if records['TYPE'] == 1:
-            records['RDATA'] = socket.inet_ntoa(raw_rdata) if (records['RDLENGTH'] == 4) else f'Malformed A Record RDATA:{raw_rdata.hex()}'
+            if records['RDLENGTH'] == 4:
+                records['RDATA'] = socket.inet_ntoa(raw_rdata)
+            else:
+                records['RDATA'] = f'Malformed A Record RDATA:{raw_rdata.hex()}'
         # records['RDATA'] = socket.inet_ntoa(raw_rdata) if (records['TYPE'] == 1 and records['RDLENGTH'] == 4) else f'Malformed A Record RDATA:{raw_rdata.hex()}'
         
         # NS record
@@ -211,7 +236,10 @@ def main():
         
         # AAAA
         elif records['TYPE'] == 28:
-            records['RDATA'] = socket.inet_ntop(socket.AF_INET6, data) if records['RDLENGTH'] == 16 else records['RDATA'] = f'Malformed A Record RDATA:{raw_rdata.hex()}'
+            if records['RDLENGTH'] == 16:
+                records['RDATA'] = socket.inet_ntop(socket.AF_INET6, data)    
+            else:
+                records['RDATA'] = f'Malformed A Record RDATA:{raw_rdata.hex()}'
         
         # PTR
         # PTR 은 IP > DNS 이니까, DNS NAME = A 레코드와 동일 (단 한번 더 처리함)
@@ -229,12 +257,7 @@ def main():
         print('records temp', records)
         
         
-    
-        Question_section = struct.unpack('!HH', data[offset:offset+4])
-        print ('Question section:', {
-            'QTYPE': Question_section[0],
-            'QCLASS': Question_section[1]
-        })
+
     else:
         print('Data too short for DNS header')
     print(offset)
