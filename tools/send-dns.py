@@ -3,6 +3,7 @@
 import socket, struct, json, secrets
 
 def main():
+    TARGET_DOMAIN = 'example.com'
     # root dns 조회
     with open('../root-dns/dns.json', 'r') as dns_list:
         root_dns = json.load(dns_list)
@@ -21,22 +22,49 @@ def main():
         # transecID는 2Bytes == 16bit
         'Transaction ID' : transecID,
         'Flags': {
-            # 업스트림 (쿼리 0, 질의 1)
-            'QR' : 0,
-            # QPCODE(쿼리 타입)
-            'OPCODE': 0,
-            'RD' : 0,
-            'AA' : 0,
-            'TC' : 0,
-            'RA' : 0,
-            'Z ': 0
+            (0 << 15) | \
+            (0 << 11) | \
+            (0 << 10) | \
+            (0 << 9)  | \
+                # rd count(1 == 재귀요청 시)
+            (0 << 8)  | \
+            (0 << 7)  | \
+            (0 << 4)  | \
+            (0 << 0)
         },
         'QDCOUNT': 1,
         'ANCOUNT': 0,
         'NSCOUNT': 0,
         'ARCOUNT': 0,
+        'QNAME':TARGET_DOMAIN,
+        'QTYPE':'A',
+        'QCLASS':'0x0001'
     }
-    print(headers)
+    # 모든 Flags 값이 0인 경우
+    combind_flags = 0x0000
+    
+    # DNS 헤더는 12바이트 (H=2BYTE > Hx6 = 12Byte)
+    # print('headers', headers)
+    print(
+        'send-headers',
+        headers['Transaction ID'],
+        combind_flags,
+        headers['QDCOUNT'],
+        headers['ANCOUNT'],
+        headers['NSCOUNT'],
+        headers['ARCOUNT']
+    )
+    header_send = struct.pack('!HHHHHH', \
+        headers['Transaction ID'],
+        combind_flags,
+        headers['QDCOUNT'],
+        headers['ANCOUNT'],
+        headers['NSCOUNT'],
+        headers['ARCOUNT'])
+    print('packed-header', header_send)
+    
+    
+    
     
     
     
