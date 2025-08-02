@@ -90,16 +90,19 @@ def main():
     last_packet = header_send + qname_bytes + qs_pack
     print(last_packet)
     
+    # DNS 포트 지정
+    ROOT_PORT = 53
     
+    # UDP 포트 생성
+    client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     
+    # UDP 패킷 송신 
+    bytes_sent = client_socket.sendto(last_packet, (root_dns_server_url, ROOT_PORT))
     
-    
-    
-    
-    
-    
-    
-    
+    print('sending bytes...', bytes_sent)
+    # 4096 바이트 수신
+    response_data, server_address = client_socket.recvfrom(4096)
+    print('응답 바이트 ', response_data.hex())
     
     pass
 
