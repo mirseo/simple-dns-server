@@ -190,9 +190,21 @@ def main():
             struct.unpack('!HHIH', data[offset:offset + 10])
         offset += 10
         
-        print('records temp')
+        # print('records temp', records)
+        
+        # RDATA 구성 ! 거의 다 왔다! ☆
+        
+        # 다음 오프셋으로 이동해서 데이터 불러오기
+        raw_rdata = data[offset:offset + records['RDLENGTH']]
+        records['RDATA_RAW'] = raw_rdata        
+        
+        # A record
+        records['RDATA'] = socket.inet_ntoa(raw_rdata) if (records['TYPE'] == 1 and records['RDLENGTH'] == 4) else f'Malformed A Record RDATA:{raw_rdata.hex()}'
+        
+        # NS record
         
         
+        print('records temp', records)
         
         
     
