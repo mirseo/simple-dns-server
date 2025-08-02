@@ -147,6 +147,9 @@ def main():
                     pointer_value = struct.unpack('!H', data_bytes[current_reading_offset:current_reading_offset+2])[0]
                     actual_offset = pointer_value & 0x3FFF # 하위 14비트 추출
                     
+                    # + 버그 수정(2차 시도) offset 업데이트 누락 해결
+                    current_reading_offset += 2
+                    
                     # 포인터가 가리키는 곳에서 이름 파싱 (재귀)
                     pointed_name, _ = decode_dns_name(data_bytes, actual_offset) 
                     name_parts.append(pointed_name)
@@ -156,6 +159,8 @@ def main():
                     
                 elif length_or_pointer_byte == 0: # 널 바이트 (이름의 끝)
                     bytes_consumed_for_this_name += 1 # 널 바이트 자체도 1바이트 소비
+                    # 버그 수정(2차) offset 누락 해결
+                    current_reading_offset += 1
                     break # 이름 파싱 끝
                     
                 else: # 일반 레이블 길이
