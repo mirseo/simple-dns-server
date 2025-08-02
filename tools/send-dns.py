@@ -14,7 +14,7 @@ def main():
     print('root dns server : ', root_dns_server_url)
     
     # 트랜젝션 키 생성
-    transecID = int(secrets.token_hex(2)[-4:], 16) & 0x6FFF
+    transecID = secrets.randbits(16)
     print('transec id', transecID)
     
     
