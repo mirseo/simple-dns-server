@@ -162,6 +162,8 @@ def main():
         
         print('decoded dns', decode_dns_name(data, 12))
         
+        records = {}
+        
         # RR 구조
         # NAME : 가변 : 도메인 이름
         # TYPE : 2 : 레코드 타입 A=1, NS=2, CNAME=5
@@ -169,6 +171,20 @@ def main():
         # TTL : 4 : Cache
         # RDL : 2 : Field길이
         # RDATA : RDL : 실제 레코드 데이터
+        
+        # 여기서 RR 레코드를 해석하는 방법을 모르겠다. 어려워요... 루트 DNS님...
+        
+        # RDATA 해석
+        print('rr section offset', offset)
+        name, cd_bytes = decode_dns_name(data, offset)
+        
+        records['Name'] = name,
+        # 오프셋 이동
+        offset += cd_bytes
+        
+        print('mved offset', offset)
+        
+        
         
     
         Question_section = struct.unpack('!HH', data[offset:offset+4])
