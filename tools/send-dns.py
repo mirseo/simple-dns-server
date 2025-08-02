@@ -184,6 +184,15 @@ def main():
         
         print('mved offset', offset)
         
+        # type, class, ttl, rdlength 2,2,4,2 (bytes)
+        
+        records['TYPE'], records['CLASS'], records['TTL'], records['RDLENGTH'] = \
+            struct.unpack('!HHIH', data[offset:offset + 10])
+        offset += 10
+        
+        print('records temp')
+        
+        
         
         
     
