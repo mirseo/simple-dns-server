@@ -109,6 +109,7 @@ def main():
         ) + RR_RDATA
         
         response = response_header + question_section + answer
+        print('response', response)
 
         sock.sendto(response, address)
         print(f"Sent response to {address}")
