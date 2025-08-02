@@ -210,6 +210,16 @@ def main():
         offset += 4
         print('Question section offset', offset)
         
+        # 새로운 오류 등장! ttl 파싱 오류 아핫 
+        # 일단 여기가 수정해야 하는 지점으로 보이는 거 같은뎀.. 지금은 ROOT 서버 요청이라서 Answer 가 0인데 이걸 파싱을 하는 게 문제인가..?
+        
+        # 실제 레코드를 디코딩하면 Authority가 실행됨
+        
+        def parse_rr_record(data_bytes, start_offset):
+            # 기존의 코드를 함수화ㄴ해보기
+            # 모르겠다아ㅏ아...
+            pass
+        
         # type, class, ttl, rdlength 2,2,4,2 (bytes)
         
         records['TYPE'], records['CLASS'], records['TTL'], records['RDLENGTH'] = \
@@ -218,7 +228,7 @@ def main():
         
         # print('records temp', records)
         
-        # RDATA 구성 ! 거의 다 왔다! ☆
+        # RDATA 구성 ! 거의 다 왔다! ☆ <- 네? 이후의 저는 아직도 까마득한데요??
         
         # 다음 오프셋으로 이동해서 데이터 불러오기
         raw_rdata = data[offset:offset + records['RDLENGTH']]
