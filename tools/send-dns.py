@@ -104,6 +104,54 @@ def main():
     response_data, server_address = client_socket.recvfrom(4096)
     print('응답 바이트 ', response_data.hex())
     
+    
+    data = response_data
+    # DNS응답 파싱 (export-header.py 재사용)
+    if len(data) >= 12:
+        # !H <- H하나가 각 2Byte이므로 헤더에서 추출 시 12Byte를 DNS헤더가 사용하기 때문에 H6개 필요
+        header = struct.unpack('!HHHHHH', data[:12])
+        print('header', header)
+        print('decoded DNS header:', {
+            'ID': header[0],
+            'Flags': header[1], 
+            'QDCOUNT': header[2],
+            'Answers': header[3],
+            'Authority': header[4],
+            'Additional': header[5]
+        })
+        # qd Count 기반 가변 도메인 쿼리 처리
+        offset = 12
+        qname_raw = b''
+        if header[2] > 0:
+            qname_length = data[offset:].find(b'\x00') + 1
+            qname_raw = data[offset:offset + qname_length]
+            
+            # Parse QNAME (skip length-prefixed format for simplicity)
+            qname_parts = []
+            i = 0
+            while i < len(qname_raw) - 1:  # -1 to skip null terminator
+                length = qname_raw[i]
+                if length == 0:
+                    break
+                qname_parts.append(qname_raw[i+1:i+1+length].decode('utf-8'))
+                i += length + 1
+            
+            qname_str = '.'.join(qname_parts)
+            print('QNAME:', qname_str)
+            offset += qname_length
+        else:
+            print('No QNAME found in the data')
+            
+        Question_section = struct.unpack('!HH', data[offset:offset+4])
+        print ('Question section:', {
+            'QTYPE': Question_section[0],
+            'QCLASS': Question_section[1]
+        })
+    else:
+        print('Data too short for DNS header')
+
+    print(f"Received {len(data)} bytes from {server_address}")
+    
     pass
 
 
