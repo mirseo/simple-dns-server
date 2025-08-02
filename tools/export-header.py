@@ -2,6 +2,29 @@ import socket, struct
 
 Port = 8124
 
+rr_memory = {
+    
+}
+
+def memory(query, ack, ack_data):
+    # 메모리가 비어있을 때
+    if not rr_memory:
+        print('No memory Cache found')
+        return None
+    # 메모리 비교 & 읽기모드
+    if query in rr_memory and (ack == 'r' or ack == None):
+        print(f"Found in memory: {query}")
+        return rr_memory[query]
+    
+    # 메모리 쓰기모드
+    if ack == 'w':
+        if query in rr_memory:
+            print(f"Updating memory for {query}")
+        else:
+            print(f"Adding to memory: {query}")
+        rr_memory[query] = ack_data
+        return True
+
 def main():
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     server_addr = ('0.0.0.0', Port)
