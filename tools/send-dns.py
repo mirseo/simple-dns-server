@@ -162,6 +162,14 @@ def main():
         
         print('decoded dns', decode_dns_name(data, 12))
         
+        # RR 구조
+        # NAME : 가변 : 도메인 이름
+        # TYPE : 2 : 레코드 타입 A=1, NS=2, CNAME=5
+        # CLASS : 2 : CLASS(INET : IN)
+        # TTL : 4 : Cache
+        # RDL : 2 : Field길이
+        # RDATA : RDL : 실제 레코드 데이터
+        
     
         Question_section = struct.unpack('!HH', data[offset:offset+4])
         print ('Question section:', {
