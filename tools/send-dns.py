@@ -106,7 +106,6 @@ def main():
     
     
     data = response_data
-    # DNS응답 파싱 (export-header.py 재사용)
     if len(data) >= 12:
         # !H <- H하나가 각 2Byte이므로 헤더에서 추출 시 12Byte를 DNS헤더가 사용하기 때문에 H6개 필요
         header = struct.unpack('!HHHHHH', data[:12])
@@ -121,27 +120,49 @@ def main():
         })
         # qd Count 기반 가변 도메인 쿼리 처리
         offset = 12
-        qname_raw = b''
-        if header[2] > 0:
-            qname_length = data[offset:].find(b'\x00') + 1
-            qname_raw = data[offset:offset + qname_length]
-            
-            # Parse QNAME (skip length-prefixed format for simplicity)
-            qname_parts = []
-            i = 0
-            while i < len(qname_raw) - 1:  # -1 to skip null terminator
-                length = qname_raw[i]
-                if length == 0:
-                    break
-                qname_parts.append(qname_raw[i+1:i+1+length].decode('utf-8'))
-                i += length + 1
-            
-            qname_str = '.'.join(qname_parts)
-            print('QNAME:', qname_str)
-            offset += qname_length
-        else:
-            print('No QNAME found in the data')
-            
+        qname_parts = []
+        reading_point = offset
+        # 현재 바이트
+        
+        # 오프셋 업데이트 바이트
+        bytes_consumed_for_this_name = 0
+        
+        def decode_dns_name(data_bytes, offset_start):
+            name_parts = []
+            current_reading_offset = offset_start # 현재 바이트를 읽는 위치
+            bytes_consumed_for_this_name = 0 # 이 이름 파싱에 사용된 총 바이트 수 (offset 업데이트용)
+
+            while True:
+                length_or_pointer_byte = data_bytes[current_reading_offset]
+                
+                if (length_or_pointer_byte & 0xC0) == 0xC0: # 포인터
+                    pointer_value = struct.unpack('!H', data_bytes[current_reading_offset:current_reading_offset+2])[0]
+                    actual_offset = pointer_value & 0x3FFF # 하위 14비트 추출
+                    
+                    # 포인터가 가리키는 곳에서 이름 파싱 (재귀)
+                    pointed_name, _ = decode_dns_name(data_bytes, actual_offset) 
+                    name_parts.append(pointed_name)
+                    
+                    bytes_consumed_for_this_name += 2 # 포인터는 2바이트 소비
+                    break # 포인터를 만나면 현재 이름 파싱은 끝
+                    
+                elif length_or_pointer_byte == 0: # 널 바이트 (이름의 끝)
+                    bytes_consumed_for_this_name += 1 # 널 바이트 자체도 1바이트 소비
+                    break # 이름 파싱 끝
+                    
+                else: # 일반 레이블 길이
+                    label_length = length_or_pointer_byte
+                    label_bytes = data_bytes[current_reading_offset + 1 : current_reading_offset + 1 + label_length]
+                    name_parts.append(label_bytes.decode('ascii'))
+                    
+                    bytes_consumed_for_this_name += (1 + label_length) # 길이 바이트(1) + 레이블 바이트(길이) 소비
+                    current_reading_offset += (1 + label_length) # 다음 레이블의 시작 위치로 이동
+
+            return '.'.join(name_parts), bytes_consumed_for_this_name
+        
+        print('decoded dns', decode_dns_name(data, 12))
+        
+    
         Question_section = struct.unpack('!HH', data[offset:offset+4])
         print ('Question section:', {
             'QTYPE': Question_section[0],
@@ -149,6 +170,7 @@ def main():
         })
     else:
         print('Data too short for DNS header')
+    print(offset)
 
     print(f"Received {len(data)} bytes from {server_address}")
     
