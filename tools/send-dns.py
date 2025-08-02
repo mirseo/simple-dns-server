@@ -289,53 +289,6 @@ def main():
             dns_list.append(record)
         print('total_record', dns_list)
         
-        # dns = parse_rr_record(data, offset, id)
-        
-        records['TYPE'], records['CLASS'], records['TTL'], records['RDLENGTH'] = \
-            struct.unpack('!HHIH', data[offset:offset + 10])
-        offset += 10
-        
-        
-        # 다음 오프셋으로 이동해서 데이터 불러오기
-        raw_rdata = data[offset:offset + records['RDLENGTH']]
-        records['RDATA_RAW'] = raw_rdata        
-        
-        # A record <- 일반 레코드로 해석하기 위해 단줄 if 풀기
-        if records['TYPE'] == 1:
-            if records['RDLENGTH'] == 4:
-                records['RDATA'] = socket.inet_ntoa(raw_rdata)
-            else:
-                records['RDATA'] = f'Malformed A Record RDATA:{raw_rdata.hex()}'
-        # records['RDATA'] = socket.inet_ntoa(raw_rdata) if (records['TYPE'] == 1 and records['RDLENGTH'] == 4) else f'Malformed A Record RDATA:{raw_rdata.hex()}'
-        
-        # NS record
-        # 여기서는 압축될 수 있으니까 FUNC에서 전체 바이트 응답
-        elif records['TYPE'] == 2:
-            ns_name, _ = decode_dns_name(data, offset)
-            records['RDATA'] = ns_name      
-        
-        # AAAA
-        elif records['TYPE'] == 28:
-            if records['RDLENGTH'] == 16:
-                records['RDATA'] = socket.inet_ntop(socket.AF_INET6, data)    
-            else:
-                records['RDATA'] = f'Malformed A Record RDATA:{raw_rdata.hex()}'
-        
-        # PTR
-        # PTR 은 IP > DNS 이니까, DNS NAME = A 레코드와 동일 (단 한번 더 처리함)
-        elif records['TYPE'] == 12:
-            ns_name_ptr, _ = decode_dns_name(data, offset)
-            records['RDATA'] = ns_name_ptr 
-            
-        # 모르는 레코드
-        else:
-            # 모르는 거니까 일단 h16 데이터 넣기
-            records['RDATA'] = data.hex()
-            
-        offset += records['RDLENGTH']
-        
-        print('records temp', records)
-        
         
 
     else:
