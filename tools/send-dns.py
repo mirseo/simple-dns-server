@@ -13,9 +13,30 @@ def main():
     # print('root dns : ', root_dns)
     print('root dns server : ', root_dns_server_url)
     
-    # 트랜젝션 키 생성
+    # 트랜젝션 키 생성 (기존에는 16진수 생성 후 10진수 변환 > randbit 사용으로 변경 (연산 효율성 추구))
     transecID = secrets.randbits(16)
     print('transec id', transecID)
+    
+    headers = {
+        # transecID는 2Bytes == 16bit
+        'Transaction ID' : transecID,
+        'Flags': {
+            # 업스트림 (쿼리 0, 질의 1)
+            'QR' : 0,
+            # QPCODE(쿼리 타입)
+            'OPCODE': 0,
+            'RD' : 0,
+            'AA' : 0,
+            'TC' : 0,
+            'RA' : 0,
+            'Z ': 0
+        },
+        'QDCOUNT': 1,
+        'ANCOUNT': 0,
+        'NSCOUNT': 0,
+        'ARCOUNT': 0,
+    }
+    print(headers)
     
     
     
