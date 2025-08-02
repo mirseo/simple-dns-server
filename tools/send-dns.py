@@ -209,21 +209,25 @@ def main():
         offset += 4
         print('Question section offset', offset)
         
+        record = {}
+        id = 0
+        
         # 반복형 DNS 파싱 함수
-        def parse_rr_record(data_bytes, start_offset):
-            record = {}
+        def parse_rr_record(data_bytes, start_offset, id):
+            # record = {}
             name, name_bytes_consumed = decode_dns_name(data_bytes, start_offset)
             current = start_offset + name_bytes_consumed
             
             record_type, record_code, record_ttl, record_rdlength = struct.unpack('!HHIH', data[current:current + 10])
-            print(
-                "debug",
-                'record_type', record_type,
-                'record_code', record_code,
-                'record_ttl', record_ttl,
-                'record_rdlength', record_rdlength,
-                'current_offset', current
-            )
+            current += 10
+            # print(
+            #     "debug",
+            #     'record_type', record_type,
+            #     'record_code', record_code,
+            #     'record_ttl', record_ttl,
+            #     'record_rdlength', record_rdlength,
+            #     'current_offset', current
+            # )
             
             # 레코드 파싱 구현
             # a레코드
@@ -264,8 +268,10 @@ def main():
             current += record_rdlength
             
             
-            print('rr offset', current)
-            print('parsed_record', record)
+            # print('rr offset', current)
+            print(f'[{id}] parsed_record', record)
+            
+            return current, record
             pass
         
         # type, class, ttl, rdlength 2,2,4,2 (bytes)
@@ -274,7 +280,16 @@ def main():
         
         offering = offset
         print('offering', offering)
-        dns = parse_rr_record(data, offset)
+        
+        # 반복 파서 구현 
+        dns_list = []
+        for i in range(header[4]):
+            id += 1
+            offset, record = parse_rr_record(data, offset, id)
+            dns_list.append(record)
+        print('total_record', dns_list)
+        
+        # dns = parse_rr_record(data, offset, id)
         
         records['TYPE'], records['CLASS'], records['TTL'], records['RDLENGTH'] = \
             struct.unpack('!HHIH', data[offset:offset + 10])
