@@ -197,16 +197,19 @@ def find_record_rr_chain(target_domain, upstream_ip):
         offset += 4
         print('Question section offset', offset)
         
-        record = {}
+        # record = {}
         id = 0
         
         # 반복형 DNS 파싱 함수
         def parse_rr_record(data_bytes, start_offset, id):
-            # record = {}
             name, name_bytes_consumed = decode_dns_name(data_bytes, start_offset)
             current = start_offset + name_bytes_consumed
             
             print(current)
+            
+            # 오류 수정 : 외부 함수 딕셔너리 > 내부 함수로 변경
+            record = {}
+            record['Name'] = name
             
             record_type, record_code, record_ttl, record_rdlength = struct.unpack('!HHIH', data[current:current + 10])
             current += 10
@@ -224,7 +227,8 @@ def find_record_rr_chain(target_domain, upstream_ip):
             if record_type == 1:
                 record['TYPE'] = 'A'
                 if record_rdlength == 4:
-                    record['RDATA'] = socket.inet_ntoa(data_bytes)
+                    rdata_bytes = data_bytes[current:current + record_rdlength]
+                    record['RDATA'] = socket.inet_ntoa(rdata_bytes)
                 else:
                     record['RDATA'] = f'Malformed A Record RDATA:{record_code.hex()}'
                 
@@ -239,7 +243,8 @@ def find_record_rr_chain(target_domain, upstream_ip):
             elif record_type == 28:
                 record['TYPE'] = 'AAAA'
                 if record_rdlength == 16:
-                    record['RDATA'] = socket.inet_ntop(socket.AF_INET6, data_bytes)    
+                    rdata_bytes = data_bytes[current:current + record_rdlength]
+                    record['RDATA'] = socket.inet_ntop(socket.AF_INET6, rdata_bytes)    
                 else:
                     record['RDATA'] = f'Malformed A Record RDATA:{record_code.hex()}'
             
@@ -267,7 +272,7 @@ def find_record_rr_chain(target_domain, upstream_ip):
         # type, class, ttl, rdlength 2,2,4,2 (bytes)
         
         print('operated Offset', offset)
-        print('debug : record', record)
+        # print('debug : record', record)
         
         # Answer 파싱
         answers = []
@@ -294,17 +299,27 @@ def find_record_rr_chain(target_domain, upstream_ip):
             if record:
                 additional_records.append(record)
                 
-        # 다음 쿼리 대상 결정 로직
+
+        if authority_records and additional_records:
+
+            next_ns_domain = authority_records[0]['RDATA']
+            for record in additional_records:
+                if record.get('TYPE') == 'A' and record.get('Name') == next_ns_domain:
+                    print(f"Additional 섹션에서 다음 업스트림 서버 IP 발견: {record['RDATA']}")
+                    return record['RDATA'], False
+
         if authority_records:
             next_ns_domain = authority_records[0]['RDATA']
-            # Additional 섹션에서 해당 NS 도메인의 IP 주소 찾기
-            for record in additional_records:
-                if record['TYPE'] == 'A' and record['Name'] == next_ns_domain:
-                    print(f"다음 업스트림 서버: {record['RDATA']}")
-                    return record['RDATA'], False # IP 주소와 계속 상태 반환
-                    
-        # 필요한 정보가 없는 경우 예외 처리
-    return None, True # 실패 시 종료
+            print(f"Additional 섹션에 IP 없음. 다음 쿼리할 도메인: {next_ns_domain}")
+            
+            next_upstream_ip, _ = find_record_rr_chain(next_ns_domain, upstream_ip)
+            
+            if next_upstream_ip:
+                print(f"재귀적 쿼리를 통해 다음 업스트림 서버 IP를 찾았습니다: {next_upstream_ip}")
+                return next_upstream_ip, False
+
+        print("다음 업스트림 서버를 찾지 못했습니다. 쿼리 체인 종료.")
+        return None, True
 
 def main():
     TARGET_DOMAIN = 'example.com'
