@@ -36,9 +36,12 @@ def main():
         'ANCOUNT': 0,
         'NSCOUNT': 0,
         'ARCOUNT': 0,
+    }
+    Question_section = {
         'QNAME':TARGET_DOMAIN,
-        'QTYPE':'A',
-        'QCLASS':'0x0001'
+        'QTYPE': 0,
+        # A  레코드 조회
+        'QCLASS': 1
     }
     # 모든 Flags 값이 0인 경우
     combind_flags = 0x0000
@@ -62,6 +65,35 @@ def main():
         headers['NSCOUNT'],
         headers['ARCOUNT'])
     print('packed-header', header_send)
+    
+    # QNAME 패킹
+    qname_bytes = b''
+    print(Question_section['QNAME'])
+    # 대상 도메인과 TLD 분리
+    for domain in str(Question_section['QNAME']).split('.'):
+        if not domain:
+            continue
+        qname_bytes += struct.pack('!B', len(domain))
+        qname_bytes += domain.encode('ascii')
+    # DNS 패킷 Null Byte 생성
+    qname_bytes += b'\x00'
+    
+    # QS 섹션 패킹
+    qs_pack = struct.pack('!HH', 
+        Question_section['QTYPE'],
+        Question_section['QCLASS'])
+    
+    print('qname', qname_bytes)
+    print('qs_pack', qs_pack)
+    
+    # 최종 패킷
+    last_packet = header_send + qname_bytes + qs_pack
+    print(last_packet)
+    
+    
+    
+    
+    
     
     
     
