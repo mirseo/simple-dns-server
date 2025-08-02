@@ -600,35 +600,44 @@ def main():
         offering = offset
         print('offering', offering)
         
+        # 문제 식별 : 이 부분에서 반복 재귀 쿼리를 수행해버림
         # 반복 파서 구현 
         stop_chain = False
         dns_list = []
         for i in range(header[4]):
             id += 1
             offset, record = parse_rr_record(data, offset, id)
+            print('returned record', record)
             dns_list.append(record)
+            # print('totalND', dns_list)
+            
             # 스탑체인 리피터 구현 ( A레코드 찾으면 True로 전환 )
             stop_chain = True if record['TYPE'] == 'A' else False
-        print('total_record', dns_list)
+        # print('total_record', dns_list)
         
-        # 무한반복쿼리
-        current_target_domain = 'example.com'
-        current_upstream_ip = '198.41.0.4'
-        stop_chain = False
+        print(dns_list)
+        # NEXT_UPSTEAM_SERVER 선정
+        next_upstream_dns = dns_list[0]
+        print('text_upstream_dns', next_upstream_dns)
         
-        while not stop_chain:
-            next_upstream_ip, stop_chain = find_record_rr_chain(current_target_domain, current_upstream_ip)
-            if stop_chain:
-                print("최종 A 레코드를 찾았습니다.")
-                break
+        # 무한반복쿼리 > 삭제 / 직접 구현 후 처리
+        # current_target_domain = 'example.com'
+        # current_upstream_ip = '198.41.0.4'
+        # stop_chain = False
+        
+        # while not stop_chain:
+        #     next_upstream_ip, stop_chain = find_record_rr_chain(current_target_domain, current_upstream_ip)
+        #     if stop_chain:
+        #         print("최종 A 레코드를 찾았습니다.")
+        #         break
             
-            current_upstream_ip = next_upstream_ip
+        #     current_upstream_ip = next_upstream_ip
             
-        print("DNS 리졸버 완료")
+        # print("DNS 리졸버 완료")
         
-        print('Resolver Complete')
-        print('Last Tracking IP : ', current_upstream_ip)
-        # print('All Resolve Logs : ', current_upstream_ip)
+        # print('Resolver Complete')
+        # print('Last Tracking IP : ', current_upstream_ip)
+        # # print('All Resolve Logs : ', current_upstream_ip)
 
         
         
