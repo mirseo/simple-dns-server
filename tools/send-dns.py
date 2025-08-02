@@ -2,9 +2,9 @@
 
 import socket, struct, json, secrets
 
-def find_record_rr_chain(next_upstram_url):
+def find_record_rr_chain(target_domain, upstream_ip):
     # 다음 재귀적 추적 업스트림 도메인 서버 지정
-    print('Next Upstream server : ', next_upstram_url)
+    print('Next Upstream server : ', upstream_ip)
     
     # transec 키 생성
     transecID = secrets.randbits(16)
@@ -30,7 +30,7 @@ def find_record_rr_chain(next_upstram_url):
         'ARCOUNT': 0,
     }
     Question_section = {
-        'QNAME':next_upstram_url,
+        'QNAME':target_domain,
         'QTYPE': 1,
         # A  레코드 조회
         'QCLASS': 1
@@ -87,7 +87,7 @@ def find_record_rr_chain(next_upstram_url):
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     
     # UDP 패킷 송신 
-    bytes_sent = client_socket.sendto(last_packet, (next_upstram_url, ROOT_PORT))
+    bytes_sent = client_socket.sendto(last_packet, (upstream_ip, ROOT_PORT))
     
     print('sending bytes...', bytes_sent)
     # 4096 바이트 수신
@@ -206,6 +206,8 @@ def find_record_rr_chain(next_upstram_url):
             name, name_bytes_consumed = decode_dns_name(data_bytes, start_offset)
             current = start_offset + name_bytes_consumed
             
+            print(current)
+            
             record_type, record_code, record_ttl, record_rdlength = struct.unpack('!HHIH', data[current:current + 10])
             current += 10
             # print(
@@ -265,20 +267,44 @@ def find_record_rr_chain(next_upstram_url):
         # type, class, ttl, rdlength 2,2,4,2 (bytes)
         
         print('operated Offset', offset)
+        print('debug : record', record)
         
-        offering = offset
-        print('offering', offering)
-        stop_chain = False
-        dns_list = []
+        # Answer 파싱
+        answers = []
+        for i in range(header[3]):
+            offset, record = parse_rr_record(data, offset, i)
+            print('returned record', record)
+            if record and record['TYPE'] == 'A':
+                answers.append(record)
+        
+        if answers:
+            print('A 레코드 탐지', answers[0]['RDATA'])
+            return answers[0]['RDATA'], True
+        
+        authority_records = []
         for i in range(header[4]):
-            id += 1
-            offset, record = parse_rr_record(data, offset, id)
-            dns_list.append(record)
-            # 스탑체인 리피터 구현 ( A레코드 찾으면 True로 전환 )
-            stop_chain = True if record['TYPE'] == 'A' else False
-        print('total_record', dns_list)
-        
-    return dns_list, stop_chain
+            offset, record = parse_rr_record(data, offset, i)
+            if record and record['TYPE'] == 'NS':
+                authority_records.append(record)
+                
+        # Additional 섹션 파싱
+        additional_records = []
+        for i in range(header[5]):
+            offset, record = parse_rr_record(data, offset, i)
+            if record:
+                additional_records.append(record)
+                
+        # 다음 쿼리 대상 결정 로직
+        if authority_records:
+            next_ns_domain = authority_records[0]['RDATA']
+            # Additional 섹션에서 해당 NS 도메인의 IP 주소 찾기
+            for record in additional_records:
+                if record['TYPE'] == 'A' and record['Name'] == next_ns_domain:
+                    print(f"다음 업스트림 서버: {record['RDATA']}")
+                    return record['RDATA'], False # IP 주소와 계속 상태 반환
+                    
+        # 필요한 정보가 없는 경우 예외 처리
+    return None, True # 실패 시 종료
 
 def main():
     TARGET_DOMAIN = 'example.com'
@@ -570,10 +596,25 @@ def main():
             stop_chain = True if record['TYPE'] == 'A' else False
         print('total_record', dns_list)
         
-        # 2차 쿼리
-        dyn_list, stop_chain = find_record_rr_chain(dns_list[0]['RDATA'])
+        # 무한반복쿼리
+        current_target_domain = 'example.com'
+        current_upstream_ip = '198.41.0.4'
+        stop_chain = False
         
-        print(f'[2] {dyn_list} stopchain {stop_chain}')
+        while not stop_chain:
+            next_upstream_ip, stop_chain = find_record_rr_chain(current_target_domain, current_upstream_ip)
+            if stop_chain:
+                print("최종 A 레코드를 찾았습니다.")
+                break
+            
+            current_upstream_ip = next_upstream_ip
+            
+        print("DNS 리졸버 완료")
+        
+        print('Resolver Complete')
+        print('Last Tracking IP : ', current_upstream_ip)
+        # print('All Resolve Logs : ', current_upstream_ip)
+
         
         
 
