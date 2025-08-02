@@ -179,7 +179,7 @@ def main():
 
             return '.'.join(name_parts), bytes_consumed_for_this_name
         
-        print('decoded dns', decode_dns_name(data, 12))
+        # print('decoded dns', decode_dns_name(data, 12))
         
         records = {}
         
@@ -191,8 +191,6 @@ def main():
         # RDL : 2 : Field길이
         # RDATA : RDL : 실제 레코드 데이터
         
-        # 여기서 RR 레코드를 해석하는 방법을 모르겠다. 어려워요... 루트 DNS님...
-        
         # RDATA 해석
         print('rr section offset', offset)
         name, cd_bytes = decode_dns_name(data, offset)
@@ -202,6 +200,15 @@ def main():
         offset += cd_bytes
         
         print('mved offset', offset)
+        
+        # 아하하.... 패킷 순서가 잘못되었었네요... 어쨋든 해결했으니 Ok!
+        Question_section = struct.unpack('!HH', data[offset:offset+4])
+        print ('Question section:', {
+            'QTYPE': Question_section[0],
+            'QCLASS': Question_section[1]
+        })
+        offset += 4
+        print('Question section offset', offset)
         
         # type, class, ttl, rdlength 2,2,4,2 (bytes)
         
@@ -252,14 +259,6 @@ def main():
         offset += records['RDLENGTH']
         
         print('records temp', records)
-        
-        # 오류 수정 3차 시도(위치 재변경)
-        Question_section = struct.unpack('!HH', data[offset:offset+4])
-        print ('Question section:', {
-            'QTYPE': Question_section[0],
-            'QCLASS': Question_section[1]
-        })
-        offset += 4
         
         
 
