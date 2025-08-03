@@ -60,8 +60,155 @@ def send_and_recv_packet(packets: dict, domain:str):
     
     return response_data
 
+# DNS 디코딩 함수
+def decode_dns_name(data_bytes, offset_start):
+    name_parts = []
+    current_reading_offset = offset_start # 현재 바이트를 읽는 위치
+    bytes_consumed_for_this_name = 0 # 이 이름 파싱에 사용된 총 바이트 수 (offset 업데이트용)
+
+    while True:
+        if current_reading_offset >= len(data_bytes):
+            print('데이터 읽기 실패')
+            break
+        
+        length_or_pointer_byte = data_bytes[current_reading_offset]
+        
+        # 압축 포인터 읽기
+        if (length_or_pointer_byte & 0xC0) == 0xC0: # 포인터
+            pointer_value = struct.unpack('!H', data_bytes[current_reading_offset:current_reading_offset+2])[0]
+            actual_offset = pointer_value & 0x3FFF # 하위 14비트 추출
+                    
+                    # + 버그 수정(2차 시도) offset 업데이트 누락 해결
+            current_reading_offset += 2
+                    
+                    # 포인터가 가리키는 곳에서 이름 파싱 (재귀)
+            pointed_name, _ = decode_dns_name(data_bytes, actual_offset) 
+            name_parts.append(pointed_name)
+                    
+            bytes_consumed_for_this_name += 2 # 포인터는 2바이트 소비
+            break # 포인터를 만나면 현재 이름 파싱은 끝
+                    
+        elif length_or_pointer_byte == 0: # 널 바이트 (이름의 끝)
+            bytes_consumed_for_this_name += 1 # 널 바이트 자체도 1바이트 소비
+                    # 버그 수정(2차) offset 누락 해결
+            current_reading_offset += 1
+            break # 이름 파싱 끝
+                    
+        else: # 일반 레이블 길이
+            label_length = length_or_pointer_byte
+                    
+                    # 버그 수정 시도 (2)
+            if current_reading_offset + 1 + label_length > len(data_bytes):
+                print(f'데이터 바운더리 초과하는 라벨 {current_reading_offset}')
+                break
+                    
+            label_bytes = data_bytes[current_reading_offset + 1 : current_reading_offset + 1 + label_length]
+            name_parts.append(label_bytes.decode('ascii'))
+                    
+            bytes_consumed_for_this_name += (1 + label_length) # 길이 바이트(1) + 레이블 바이트(길이) 소비
+            current_reading_offset += (1 + label_length) # 다음 레이블의 시작 위치로 이동
+
+        return '.'.join(name_parts), bytes_consumed_for_this_name
+    
+
 # 패킷 헤더를 파싱하는 함수
-def parser_packet_headers(packet):
+def parser_packet_headers(packet, current_offset):
+    record = {}
+    
+    def parse_rr_record(data_bytes, start_offset, id):
+            # record = {}
+            # print('debug : recv', data_bytes)
+            name, name_bytes_consumed = decode_dns_name(data_bytes, start_offset)
+            current = start_offset + name_bytes_consumed
+            
+            record_type, record_code, record_ttl, record_rdlength = struct.unpack('!HHIH', packet[current:current + 10])
+            current += 10
+            # print(
+            #     "debug",
+            #     'record_type', record_type,
+            #     'record_code', record_code,
+            #     'record_ttl', record_ttl,
+            #     'record_rdlength', record_rdlength,
+            #     'current_offset', current
+            # )
+            
+            # 레코드 파싱 구현
+            # a레코드
+            if record_type == 1:
+                record['TYPE'] = 'A'
+                if record_rdlength == 4:
+                    record['RDATA'] = socket.inet_ntoa(data_bytes)
+                else:
+                    record['RDATA'] = f'Malformed A Record RDATA:{record_code.hex()}'
+                
+            # ns record
+            elif record_type == 2:
+                record['TYPE'] = 'NS'
+                ns_name, _ = decode_dns_name(data_bytes, current)
+                record['RDATA'] = ns_name      
+                print('NS_NAME', ns_name, _)
+            
+            # AAAA
+            elif record_type == 28:
+                record['TYPE'] = 'AAAA'
+                if record_rdlength == 16:
+                    record['RDATA'] = socket.inet_ntop(socket.AF_INET6, data_bytes)    
+                else:
+                    record['RDATA'] = f'Malformed A Record RDATA:{record_code.hex()}'
+            
+            # PTR
+            # PTR 은 IP > DNS 이니까, DNS NAME = A 레코드와 동일 (단 한번 더 처리함)
+            elif record_type == 12:
+                record['TYPE'] = 'PTR'
+                ns_name_ptr, _ = decode_dns_name(data_bytes, current)
+                record['RDATA'] = ns_name_ptr 
+                
+            # 모르는 레코드
+            else:
+                # 모르는 거니까 일단 h16 데이터 넣기
+                record['RDATA'] = data_bytes.hex()
+                
+            current += record_rdlength
+            
+            
+            # print('rr offset', current)
+            print(f'[{id}] parsed_record', record)
+            
+            return current, record
+    # 헤더 분리
+    headers = struct.unpack('!HHHHHH', packet[:12])
+    current_offset += 12 
+    # 패킷 (12바이트 해석 이후이므로 오프셋 12로 업데이트)
+    # 주석용 헤더 (ID - 0 , flags - 1, qdcount - 2, answers - 3, authority - 4, additonal - 5)
+    
+    # RR 구조
+    # NAME : 가변 : 도메인 이름
+    # TYPE : 2 : 레코드 타입 A=1, NS=2, CNAME=5
+    # CLASS : 2 : CLASS(INET : IN)
+    # TTL : 4 : Cache
+    # RDL : 2 : Field길이
+    # RDATA : RDL : 실제 레코드 데이터
+        
+    # RDATA 해석
+    record['Name'], move_bytes = decode_dns_name(packet, current_offset)
+    current_offset += move_bytes
+    
+    Question_section = struct.unpack('!HH', packet[current_offset:current_offset+4])
+    current_offset += 4
+    
+    dns_list, id, stop_chain = [], 0, False
+    for i in range(headers[4]):
+        id += 1
+        current_offset, record = parse_rr_record(packet, current_offset, id)
+        print('returned record', record)
+        dns_list.append(record)
+            # print('totalND', dns_list)
+            
+            # 스탑체인 리피터 구현 ( A레코드 찾으면 True로 전환 )
+        stop_chain = True if record['TYPE'] == 'A' else False
+        # print('total_record', dns_list)
+    
+    print(record)
     pass
 
 def main():
@@ -75,6 +222,14 @@ def main():
     
     data = send_and_recv_packet(send_headers, root_dns)
     print(f'[3] 수신된 데이터 {data}')
+    
+    current_offset = 0
+    # 파싱을 시작하기 전이므로 offset 0 
+    
+    parsed = parser_packet_headers(data, current_offset)
+    print('parser', parsed)
+    
+    
 
 if __name__ == "__main__":
     main()
