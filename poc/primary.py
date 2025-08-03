@@ -203,15 +203,19 @@ def parser_packet_headers(packet, current_offset):
     for i in range(headers[4]):
         id += 1
         current_offset, record = parse_rr_record(packet, current_offset, id)
-        print('returned record', record)
-        dns_list.append(record)
+        # print('returned record', record)
+        
+        # 25.08.03 - 딕셔너리 메모리 주소 업데이트 버그 수정
+        dns_list.append(record.copy())
+        # print('now data_list_saved', dns_list)
             # print('totalND', dns_list)
             
             # 스탑체인 리피터 구현 ( A레코드 찾으면 True로 전환 )
         stop_chain = True if record['TYPE'] == 'A' else False
         # print('total_record', dns_list)
     
-    print(record)
+    # print('NX', record)
+    print('nx', dns_list)
     pass
 
 def main():
