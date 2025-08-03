@@ -175,7 +175,7 @@ def parser_packet_headers(packet, current_offset):
             
             
             # print('rr offset', current)
-            print(f'[{id}] parsed_record', record)
+            # print(f'[{id}] parsed_record', record)
             
             return current, record
     # 헤더 분리
@@ -215,7 +215,65 @@ def parser_packet_headers(packet, current_offset):
         # print('total_record', dns_list)
     
     # print('NX', record)
-    print('nx', dns_list)
+    print('[4] 현재 파싱된 레코드 : ', dns_list)
+    
+    # 레코드에 A 레코드가 있는지 확인 or AAAA
+    
+    output_records, next_upstream_url = [], []
+    for dns in dns_list:
+        # print(dns)
+        if(dns['TYPE'] == ('A' or 'AAAA')):
+            output_records.append(dns.copy())
+            print('A레코드를 찾았습니다.')
+        elif (dns['TYPE'] == ('NS' or 'CNAME')):
+            next_upstream_url.append(dns.copy())
+            # 다음 레코드 질의 시작
+        else:
+            print('해당 도메인은 추적할 수 없습니다. 레코드가 정상적인지 확인해주세요.')
+    print('next_upstream', next_upstream_url)
+    # print('레코드 추적이 완료되지 않았습니다. 2차 추적을 실시합니다.')
+    if not output_records:
+        rec = {}
+        target_url = dns['Name']
+        print(f'2차 추적 개시 ... 목표 DNS : {target_url}')
+        
+        offset = 0
+        
+        headers, transecID = create_req_packet(target_url)
+        print('다음 리졸브 서버', next_upstream_url[-1]['RDATA'])
+        resv_data = send_and_recv_packet(headers, next_upstream_url[-1]['RDATA'])
+        offset += 12
+        # 헤더 파싱
+        # print(decode_dns_name(resv_data, 12))
+        
+        rec['Name'], move_bytes = decode_dns_name(packet, offset)
+        offset += move_bytes
+        
+        Question_section = struct.unpack('!HH', packet[offset:offset+4])
+        offset += 4
+        dns_list, id, stop_chain = [], 0, False
+        while True:
+            id += 1
+            offset, record = parse_rr_record(packet, offset, id)
+            print('returned record', record)
+            
+            # 25.08.03 - 딕셔너리 메모리 주소 업데이트 버그 수정
+            dns_list.append(record.copy())
+            print('now data_list_saved', dns_list)
+                # print('totalND', dns_list)
+                
+                # 스탑체인 리피터 구현 ( A레코드 찾으면 True로 전환 )
+            if(dns_list['TYPE'] == ('A' or 'AAAA')):
+                pass
+            # print('total_record', dns_list)
+        
+        # print('NX', record)
+        print('[4] 현재 파싱된 레코드 : ', dns_list)
+        
+        print('recv', resv_data)
+        print('rec', rec)
+    else:
+        return output_records
     pass
 
 def main():
