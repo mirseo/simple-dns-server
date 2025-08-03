@@ -65,6 +65,8 @@ def decode_dns_name(data_bytes, offset_start):
     name_parts = []
     current_reading_offset = offset_start # 현재 바이트를 읽는 위치
     bytes_consumed_for_this_name = 0 # 이 이름 파싱에 사용된 총 바이트 수 (offset 업데이트용)
+    
+    # print('debug : ', current_reading_offset, len(data_bytes))
 
     while True:
         if current_reading_offset >= len(data_bytes):
@@ -108,7 +110,8 @@ def decode_dns_name(data_bytes, offset_start):
             bytes_consumed_for_this_name += (1 + label_length) # 길이 바이트(1) + 레이블 바이트(길이) 소비
             current_reading_offset += (1 + label_length) # 다음 레이블의 시작 위치로 이동
 
-        return '.'.join(name_parts), bytes_consumed_for_this_name
+    # 25.08.03 - 버그 수정 return 문 위치 조정
+    return '.'.join(name_parts), bytes_consumed_for_this_name
     
 
 # 패킷 헤더를 파싱하는 함수
