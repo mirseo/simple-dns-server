@@ -126,6 +126,9 @@ def parser_packet_headers(packet, current_offset):
             
             record_type, record_code, record_ttl, record_rdlength = struct.unpack('!HHIH', packet[current:current + 10])
             current += 10
+            rdata_start = current
+            rdata_end = rdata_start + record_rdlength
+            rdata_bytes = data_bytes[rdata_start:rdata_end]
             # print(
             #     "debug",
             #     'record_type', record_type,
@@ -140,7 +143,8 @@ def parser_packet_headers(packet, current_offset):
             if record_type == 1:
                 record['TYPE'] = 'A'
                 if record_rdlength == 4:
-                    record['RDATA'] = socket.inet_ntoa(data_bytes)
+                    record_bytes = data_bytes[current:current + record_rdlength]
+                    record['RDATA'] = socket.inet_ntoa(record_bytes)
                 else:
                     record['RDATA'] = f'Malformed A Record RDATA:{record_code.hex()}'
                 
@@ -155,7 +159,8 @@ def parser_packet_headers(packet, current_offset):
             elif record_type == 28:
                 record['TYPE'] = 'AAAA'
                 if record_rdlength == 16:
-                    record['RDATA'] = socket.inet_ntop(socket.AF_INET6, data_bytes)    
+                    rdata_bytes = data_bytes[current:current + record_rdlength]
+                    record['RDATA'] = socket.inet_ntop(socket.AF_INET6, rdata_bytes)    
                 else:
                     record['RDATA'] = f'Malformed A Record RDATA:{record_code.hex()}'
             
@@ -198,6 +203,21 @@ def parser_packet_headers(packet, current_offset):
     
     Question_section = struct.unpack('!HH', packet[current_offset:current_offset+4])
     current_offset += 4
+    
+    for i in range(headers[3]): # ANCOUNT
+        current_offset, record = parse_rr_record(packet, current_offset, i)
+        # A 레코드를 찾았다면 여기서 반환
+        print('debug_arecord', i)
+        
+    # Authority 섹션 파싱
+    for i in range(headers[4]): # NSCOUNT
+        current_offset, record = parse_rr_record(packet, current_offset, i)
+        # NS 레코드를 리스트에 저장
+    
+    # Additional 섹션 파싱
+    for i in range(headers[5]): # ARCOUNT
+        current_offset, record = parse_rr_record(packet, current_offset, i)
+        # 다음 질의할 서버 IP를 찾아서 저장
     
     dns_list, id, stop_chain = [], 0, False
     for i in range(headers[4]):
@@ -245,7 +265,8 @@ def parser_packet_headers(packet, current_offset):
         offset += 12
         # 헤더 파싱
         # print(decode_dns_name(resv_data, 12))
-        
+        parsed_data = parser_packet_headers(resv_data, 0)
+        print('parsed_data', parsed_data)
         rec['Name'], move_bytes = decode_dns_name(packet, offset)
         offset += move_bytes
         
@@ -263,8 +284,8 @@ def parser_packet_headers(packet, current_offset):
                 # print('totalND', dns_list)
                 
                 # 스탑체인 리피터 구현 ( A레코드 찾으면 True로 전환 )
-            if(dns_list['TYPE'] == ('A' or 'AAAA')):
-                pass
+            # if(dns_list['TYPE'] == ('A' or 'AAAA')):
+            #     pass
             # print('total_record', dns_list)
         
         # print('NX', record)
