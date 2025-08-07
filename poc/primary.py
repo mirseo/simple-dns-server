@@ -70,6 +70,7 @@ def decode_dns_name(data_bytes, offset_start):
 
     while True:
         if current_reading_offset >= len(data_bytes):
+            print('Current reading offset', current_reading_offset, 'is out of bounds for data length', len(data_bytes))
             print('데이터 읽기 실패')
             break
         
